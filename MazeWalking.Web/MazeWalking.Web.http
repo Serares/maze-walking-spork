@@ -1,0 +1,6 @@
+@MazeWalking.Web_HostAddress = http://localhost:5180
+
+GET {{MazeWalking.Web_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
