@@ -1,3 +1,10 @@
+using MazeWalking.Web.Extensions;
+using MazeWalking.Web.RouteExtensions;
+using MazeWalking.Web.Services;
+using MazeWalking.Web.Data;
+using MazeWalking.Web.Repositories;
+using Microsoft.EntityFrameworkCore;
+using Serilog;
 
 namespace MazeWalking.Web
 {
@@ -5,28 +12,60 @@ namespace MazeWalking.Web
     {
         public static void Main(string[] args)
         {
+            // Create a bootstrap logger for early startup logging
+            Log.Logger = new LoggerConfiguration()
+                .MinimumLevel.Information()
+                .WriteTo.Console()
+                .CreateLogger();
+
             var builder = WebApplication.CreateBuilder(args);
+
+            // Configure SQLite database
+            var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
+                ?? "Data Source=mazewalking.db";
+
+            builder.Services.AddDbContext<GameDataDbContext>(options =>
+                options.UseSqlite(connectionString));
+
+            // Register repository and services
+            builder.Services.AddTransient<MoveChecker>();
+            builder.Services.AddScoped<IGameDataRepository, GameDataRepository>();
+            builder.Services.AddScoped<GameEngine>();
 
             // Add services to the container.
             builder.Services.AddAuthorization();
-
-            // Configure CORS for React frontend
-            builder.Services.AddCors(options =>
+            // Add Serilog
+            builder.Host.UseSerilog((context, configuration) =>
             {
-                options.AddPolicy("ReactApp", policy =>
-                {
-                    policy.WithOrigins("http://localhost:5173") // Vite dev server
-                          .AllowAnyHeader()
-                          .AllowAnyMethod()
-                          .AllowCredentials();
-                });
+                configuration
+                    .MinimumLevel.Information()
+                    .MinimumLevel.Override("Microsoft.AspNetCore", Serilog.Events.LogEventLevel.Warning)
+                    .MinimumLevel.Override("Microsoft.EntityFrameworkCore.Database.Command", Serilog.Events.LogEventLevel.Warning)
+                    .WriteTo.Console(outputTemplate: "[{Timestamp:yyyy-MM-dd HH:mm:ss} {Level:u3}] {Message:lj} {Properties:j}{NewLine}{Exception}")
+                    .WriteTo.File("logs/app-.log",
+                        rollingInterval: RollingInterval.Day,
+                        retainedFileCountLimit: 7,
+                        outputTemplate: "[{Timestamp:yyyy-MM-dd HH:mm:ss} {Level:u3}] {Message:lj} {Properties:j}{NewLine}{Exception}")
+                    .Enrich.FromLogContext()
+                    .Enrich.WithProperty("Application", "MazeWalking.Web");
             });
+
+            builder.Services.AddCustomCors();
+            builder.Services.AddCustomHttpLogging();
 
             // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen();
 
             var app = builder.Build();
+
+            // Ensure database is created
+            using (var scope = app.Services.CreateScope())
+            {
+                var dbContext = scope.ServiceProvider.GetRequiredService<GameDataDbContext>();
+                dbContext.Database.EnsureCreated();
+                Log.Information("Database initialized successfully");
+            }
 
             // Configure the HTTP request pipeline.
             if (app.Environment.IsDevelopment())
@@ -38,30 +77,11 @@ namespace MazeWalking.Web
             app.UseHttpsRedirection();
 
             // Enable CORS
-            app.UseCors("ReactApp");
+            app.UseCors();
 
             app.UseAuthorization();
 
-            var summaries = new[]
-            {
-                "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
-            };
-
-            app.MapGet("/weatherforecast", (HttpContext httpContext) =>
-            {
-                var forecast = Enumerable.Range(1, 5).Select(index =>
-                    new WeatherForecast
-                    {
-                        Date = DateOnly.FromDateTime(DateTime.Now.AddDays(index)),
-                        TemperatureC = Random.Shared.Next(-20, 55),
-                        Summary = summaries[Random.Shared.Next(summaries.Length)]
-                    })
-                    .ToArray();
-                return forecast;
-            })
-            .WithName("GetWeatherForecast")
-            .WithOpenApi();
-
+            app.MapGets();
             app.Run();
         }
     }
