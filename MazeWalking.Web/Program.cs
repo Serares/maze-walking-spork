@@ -1,10 +1,11 @@
 using MazeWalking.Web.Extensions;
-using MazeWalking.Web.RouteExtensions;
 using MazeWalking.Web.Services;
 using MazeWalking.Web.Data;
 using MazeWalking.Web.Repositories;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
+using System.Text.Json;
+using MazeWalking.Web.RouteExtensions;
 
 namespace MazeWalking.Web
 {
@@ -50,6 +51,12 @@ namespace MazeWalking.Web
                     .Enrich.WithProperty("Application", "MazeWalking.Web");
             });
 
+            builder.Services.ConfigureHttpJsonOptions(options =>
+            {
+                options.SerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
+                options.SerializerOptions.DictionaryKeyPolicy = JsonNamingPolicy.CamelCase;
+            });
+
             builder.Services.AddCustomCors();
             builder.Services.AddCustomHttpLogging();
 
@@ -80,8 +87,7 @@ namespace MazeWalking.Web
             app.UseCors();
 
             app.UseAuthorization();
-
-            app.MapGets();
+            app.MapPosts();
             app.Run();
         }
     }

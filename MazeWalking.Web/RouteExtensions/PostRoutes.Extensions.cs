@@ -1,19 +1,18 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using MazeWalking.Web.Models;
 using MazeWalking.Web.Services;
-using MazeWalking.Web.Models;
+using Microsoft.AspNetCore.Mvc;
 
 namespace MazeWalking.Web.RouteExtensions
 {
-    public static class GetRoutes
+    public static class PostRoutes
     {
-        public static void MapGets(this WebApplication app)
+        public static void MapPosts(this WebApplication app)
         {
             var api = app.MapGroup("/api");
-
-            api.MapGet("/config", Config);
+            api.MapPost("/config", Config);
         }
 
-        private static IResult Config(
+        public static IResult Config(
             [FromServices] GameEngine ge,
             [FromBody] InitRequest initRequest
             )

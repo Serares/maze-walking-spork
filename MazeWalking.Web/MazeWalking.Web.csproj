@@ -23,6 +23,7 @@
 
   <ItemGroup>
     <Folder Include="logs\" />
+    <Folder Include="db\" />
   </ItemGroup>
 
 </Project>

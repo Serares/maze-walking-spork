@@ -40,7 +40,7 @@ namespace MazeWalking.Web.Services
 
         public string Move()
         {
-
+            return "Implement me!";
         }
 
         public async Task<PlayersData?> GetPlayerAsync(string playerName, CancellationToken cancellationToken = default)
