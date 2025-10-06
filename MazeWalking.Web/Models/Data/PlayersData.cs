@@ -1,4 +1,6 @@
-﻿namespace MazeWalking.Web.Models.Data
+﻿using System.Text.Json;
+
+namespace MazeWalking.Web.Models.Data
 {
     /// <summary>
     /// Represents a 2D position in the maze grid.
@@ -7,14 +9,19 @@
 
     /// <summary>
     /// Player data model used for both API request/response and in-memory game state.
-    /// This model represents the complete state of a player in the maze walking game.
+    /// This model represents the complete state of a player in a current match.
     /// </summary>
     public class PlayersData
     {
         /// <summary>
-        /// Unique identifier for the player (primary key in database).
+        /// Unique identifier for the player.
         /// </summary>
-        public int Id { get; set; }
+        public int PlayerId { get; set; }
+
+        /// <summary>
+        /// Unique identifier for the current match.
+        /// </summary>
+        public int MatchId { get; set; }
 
         /// <summary>
         /// Player's name. Used as a friendly identifier.
@@ -29,8 +36,6 @@
         /// <summary>
         /// The maze structure as a 2D array.
         /// Each cell can represent walls (1), paths (0), start point, end point, etc.
-        /// This is used for the Initial state of the maze
-        /// can be used in case the player wants to restart the same game
         /// </summary>
         public required int[][] Maze { get; set; }
 
@@ -45,13 +50,64 @@
         public double Time { get; set; }
 
         /// <summary>
-        /// Timestamp when the player record was created.
+        /// Timestamp when the match was created.
         /// </summary>
         public DateTime CreatedAt { get; set; }
 
         /// <summary>
-        /// Timestamp when the player record was last updated.
+        /// Timestamp when the match was last updated.
         /// </summary>
         public DateTime UpdatedAt { get; set; }
+
+        /// <summary>
+        /// Converts a PlayerEntity and MatchEntity to a PlayersData model.
+        /// </summary>
+        public static PlayersData FromEntities(PlayerEntity player, MatchEntity match)
+        {
+            var jsonOptions = new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true
+            };
+
+            var position = JsonSerializer.Deserialize<Position>(match.CurrentPosition, jsonOptions)
+                ?? throw new InvalidOperationException("Failed to deserialize position data");
+
+            var maze = JsonSerializer.Deserialize<int[][]>(match.Maze, jsonOptions)
+                ?? throw new InvalidOperationException("Failed to deserialize maze data");
+
+            return new PlayersData
+            {
+                PlayerId = player.Id,
+                MatchId = match.Id,
+                Name = player.Name,
+                CurrentPosition = position,
+                Maze = maze,
+                Finished = match.Finished,
+                Time = match.Time,
+                CreatedAt = match.CreatedAt,
+                UpdatedAt = match.UpdatedAt
+            };
+        }
+
+        /// <summary>
+        /// Converts this PlayersData to a MatchEntity (for updating match data).
+        /// </summary>
+        public MatchEntity ToMatchEntity()
+        {
+            var positionJson = JsonSerializer.Serialize(CurrentPosition);
+            var mazeJson = JsonSerializer.Serialize(Maze);
+
+            return new MatchEntity
+            {
+                Id = MatchId,
+                PlayerId = PlayerId,
+                CurrentPosition = positionJson,
+                Maze = mazeJson,
+                Finished = Finished,
+                Time = Time,
+                CreatedAt = CreatedAt,
+                UpdatedAt = UpdatedAt
+            };
+        }
     }
 }

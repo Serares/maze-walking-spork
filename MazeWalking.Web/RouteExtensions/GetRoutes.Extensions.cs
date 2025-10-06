@@ -15,10 +15,10 @@ namespace MazeWalking.Web.RouteExtensions
 
         private static IResult Config(
             [FromServices] GameEngine ge,
-            [FromBody] InitRequest InitRequest
+            [FromBody] InitRequest initRequest
             )
         {
-            return Results.Ok(ge.InitConfig());
+            return Results.Ok(ge.InitConfig(initRequest));
         }
     }
 }

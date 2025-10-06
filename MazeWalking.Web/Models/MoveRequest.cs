@@ -1,6 +1,4 @@
 ﻿namespace MazeWalking.Web.Models
 {
-    public class MoveRequest
-    {
-    }
+    public record MoveRequest(int X, int Y);
 }

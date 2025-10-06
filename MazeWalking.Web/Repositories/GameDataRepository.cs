@@ -1,12 +1,13 @@
 using Microsoft.EntityFrameworkCore;
 using MazeWalking.Web.Data;
 using MazeWalking.Web.Models.Data;
+using System.Text.Json;
 
 namespace MazeWalking.Web.Repositories
 {
     /// <summary>
-    /// Repository implementation for managing player game data using EF Core and SQLite.
-    /// Handles conversion between PlayersData models and PlayerDataEntity entities.
+    /// Repository implementation for managing player and match data using EF Core and SQLite.
+    /// Works with normalized Player and Match tables.
     /// </summary>
     public class GameDataRepository : IGameDataRepository
     {
@@ -31,30 +32,53 @@ namespace MazeWalking.Web.Repositories
 
             try
             {
-                // Convert to entity
-                var entity = PlayerDataEntity.FromPlayersData(playersData);
+                // Find or create player
+                var player = await _context.Players
+                    .FirstOrDefaultAsync(p => p.Name == playersData.Name, cancellationToken);
 
-                // Add to context
+                if (player == null)
+                {
+                    player = new PlayerEntity
+                    {
+                        Name = playersData.Name
+                    };
+                    await _context.Players.AddAsync(player, cancellationToken);
+                    await _context.SaveChangesAsync(cancellationToken);
 
-                await _context.PlayerData.AddAsync(entity, cancellationToken);
-                // Save changes (timestamps are set automatically by the context)
+                    _logger.LogInformation("Created new player {PlayerName} with ID {PlayerId}",
+                        player.Name, player.Id);
+                }
+
+                // Create new match for this player
+                var positionJson = JsonSerializer.Serialize(playersData.CurrentPosition);
+                var mazeJson = JsonSerializer.Serialize(playersData.Maze);
+
+                var match = new MatchEntity
+                {
+                    PlayerId = player.Id,
+                    CurrentPosition = positionJson,
+                    Maze = mazeJson,
+                    Finished = playersData.Finished,
+                    Time = playersData.Time
+                };
+
+                await _context.Matches.AddAsync(match, cancellationToken);
                 await _context.SaveChangesAsync(cancellationToken);
 
-                _logger.LogInformation("Initialized player entry for {PlayerName} with ID {PlayerId}",
-                    entity.Name, entity.Id);
+                _logger.LogInformation("Initialized match {MatchId} for player {PlayerName}",
+                    match.Id, player.Name);
 
-                // Convert back to model and return
-                return entity.ToPlayersData();
+                return PlayersData.FromEntities(player, match);
             }
             catch (DbUpdateException ex)
             {
-                _logger.LogError(ex, "Database error occurred while initializing player entry for {PlayerName}",
+                _logger.LogError(ex, "Database error occurred while initializing entry for {PlayerName}",
                     playersData.Name);
-                throw new InvalidOperationException($"Failed to initialize player entry for {playersData.Name}", ex);
+                throw new InvalidOperationException($"Failed to initialize entry for {playersData.Name}", ex);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Unexpected error occurred while initializing player entry for {PlayerName}",
+                _logger.LogError(ex, "Unexpected error occurred while initializing entry for {PlayerName}",
                     playersData.Name);
                 throw;
             }
@@ -65,59 +89,56 @@ namespace MazeWalking.Web.Repositories
         {
             ArgumentNullException.ThrowIfNull(playersData);
 
-            if (playersData.Id <= 0)
+            if (playersData.MatchId <= 0)
             {
-                throw new ArgumentException("Player ID must be greater than zero", nameof(playersData));
+                throw new ArgumentException("Match ID must be greater than zero", nameof(playersData));
             }
 
             try
             {
-                // Find existing entity
-                var existingEntity = await _context.PlayerData
-                    .FirstOrDefaultAsync(p => p.Id == playersData.Id, cancellationToken);
+                // Find existing match with player
+                var match = await _context.Matches
+                    .Include(m => m.Player)
+                    .FirstOrDefaultAsync(m => m.Id == playersData.MatchId, cancellationToken);
 
-                if (existingEntity == null)
+                if (match == null)
                 {
-                    _logger.LogWarning("Player entry with ID {PlayerId} not found for update", playersData.Id);
+                    _logger.LogWarning("Match with ID {MatchId} not found for update", playersData.MatchId);
                     return null;
                 }
 
-                // Update entity properties (preserve ID and CreatedAt)
-                var updatedEntity = PlayerDataEntity.FromPlayersData(playersData);
-                existingEntity.Name = updatedEntity.Name;
-                existingEntity.CurrentPosition = updatedEntity.CurrentPosition;
-                existingEntity.InitialMaze = updatedEntity.InitialMaze;
-                existingEntity.Finished = updatedEntity.Finished;
-                existingEntity.Time = updatedEntity.Time;
-                // UpdatedAt is handled by the context automatically
+                // Update match properties
+                var positionJson = JsonSerializer.Serialize(playersData.CurrentPosition);
+                var mazeJson = JsonSerializer.Serialize(playersData.Maze);
 
-                // Mark as modified
-                _context.PlayerData.Update(existingEntity);
+                match.CurrentPosition = positionJson;
+                match.Maze = mazeJson;
+                match.Finished = playersData.Finished;
+                match.Time = playersData.Time;
 
-                // Save changes
+                _context.Matches.Update(match);
                 await _context.SaveChangesAsync(cancellationToken);
 
-                _logger.LogInformation("Updated player entry for ID {PlayerId}", playersData.Id);
+                _logger.LogInformation("Updated match ID {MatchId}", playersData.MatchId);
 
-                // Convert back to model and return
-                return existingEntity.ToPlayersData();
+                return PlayersData.FromEntities(match.Player, match);
             }
             catch (DbUpdateConcurrencyException ex)
             {
-                _logger.LogError(ex, "Concurrency error occurred while updating player entry with ID {PlayerId}",
-                    playersData.Id);
-                throw new InvalidOperationException($"Concurrency conflict while updating player with ID {playersData.Id}", ex);
+                _logger.LogError(ex, "Concurrency error occurred while updating match with ID {MatchId}",
+                    playersData.MatchId);
+                throw new InvalidOperationException($"Concurrency conflict while updating match {playersData.MatchId}", ex);
             }
             catch (DbUpdateException ex)
             {
-                _logger.LogError(ex, "Database error occurred while updating player entry with ID {PlayerId}",
-                    playersData.Id);
-                throw new InvalidOperationException($"Failed to update player entry with ID {playersData.Id}", ex);
+                _logger.LogError(ex, "Database error occurred while updating match with ID {MatchId}",
+                    playersData.MatchId);
+                throw new InvalidOperationException($"Failed to update match with ID {playersData.MatchId}", ex);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Unexpected error occurred while updating player entry with ID {PlayerId}",
-                    playersData.Id);
+                _logger.LogError(ex, "Unexpected error occurred while updating match with ID {MatchId}",
+                    playersData.MatchId);
                 throw;
             }
         }
@@ -132,52 +153,66 @@ namespace MazeWalking.Web.Repositories
                 throw new ArgumentException("Player name cannot be null or empty", nameof(playersData));
             }
 
+            if (playersData.MatchId <= 0)
+            {
+                throw new ArgumentException("Match ID must be greater than zero", nameof(playersData));
+            }
+
             try
             {
-                // Find existing entity by name
-                var existingEntity = await _context.PlayerData
+                // Find player by name
+                var player = await _context.Players
                     .FirstOrDefaultAsync(p => p.Name == playersData.Name, cancellationToken);
 
-                if (existingEntity == null)
+                if (player == null)
                 {
-                    _logger.LogWarning("Player entry with name '{PlayerName}' not found for update", playersData.Name);
+                    _logger.LogWarning("Player with name '{PlayerName}' not found for update", playersData.Name);
                     return null;
                 }
 
-                // Update entity properties (preserve ID and CreatedAt)
-                var updatedEntity = PlayerDataEntity.FromPlayersData(playersData);
-                existingEntity.CurrentPosition = updatedEntity.CurrentPosition;
-                existingEntity.Maze = updatedEntity.Maze;
-                existingEntity.Finished = updatedEntity.Finished;
-                existingEntity.Time = updatedEntity.Time;
-                // UpdatedAt is handled by the context automatically
+                // Find the specific match
+                var match = await _context.Matches
+                    .FirstOrDefaultAsync(m => m.Id == playersData.MatchId && m.PlayerId == player.Id, cancellationToken);
 
-                // Mark as modified
-                _context.PlayerData.Update(existingEntity);
+                if (match == null)
+                {
+                    _logger.LogWarning("Match {MatchId} not found for player '{PlayerName}'",
+                        playersData.MatchId, playersData.Name);
+                    return null;
+                }
 
-                // Save changes
+                // Update match properties
+                var positionJson = JsonSerializer.Serialize(playersData.CurrentPosition);
+                var mazeJson = JsonSerializer.Serialize(playersData.Maze);
+
+                match.CurrentPosition = positionJson;
+                match.Maze = mazeJson;
+                match.Finished = playersData.Finished;
+                match.Time = playersData.Time;
+
+                _context.Matches.Update(match);
                 await _context.SaveChangesAsync(cancellationToken);
 
-                _logger.LogInformation("Updated player entry for name '{PlayerName}'", playersData.Name);
+                _logger.LogInformation("Updated match {MatchId} for player '{PlayerName}'",
+                    match.Id, playersData.Name);
 
-                // Convert back to model and return
-                return existingEntity.ToPlayersData();
+                return PlayersData.FromEntities(player, match);
             }
             catch (DbUpdateConcurrencyException ex)
             {
-                _logger.LogError(ex, "Concurrency error occurred while updating player entry with name '{PlayerName}'",
+                _logger.LogError(ex, "Concurrency error occurred while updating match for '{PlayerName}'",
                     playersData.Name);
-                throw new InvalidOperationException($"Concurrency conflict while updating player '{playersData.Name}'", ex);
+                throw new InvalidOperationException($"Concurrency conflict while updating match for '{playersData.Name}'", ex);
             }
             catch (DbUpdateException ex)
             {
-                _logger.LogError(ex, "Database error occurred while updating player entry with name '{PlayerName}'",
+                _logger.LogError(ex, "Database error occurred while updating match for '{PlayerName}'",
                     playersData.Name);
-                throw new InvalidOperationException($"Failed to update player entry '{playersData.Name}'", ex);
+                throw new InvalidOperationException($"Failed to update match for '{playersData.Name}'", ex);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Unexpected error occurred while updating player entry with name '{PlayerName}'",
+                _logger.LogError(ex, "Unexpected error occurred while updating match for '{PlayerName}'",
                     playersData.Name);
                 throw;
             }
@@ -188,26 +223,28 @@ namespace MazeWalking.Web.Repositories
         {
             if (id <= 0)
             {
-                throw new ArgumentException("Player ID must be greater than zero", nameof(id));
+                throw new ArgumentException("Match ID must be greater than zero", nameof(id));
             }
 
             try
             {
-                var entity = await _context.PlayerData
+                // Get match with player by match ID
+                var match = await _context.Matches
                     .AsNoTracking()
-                    .FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
+                    .Include(m => m.Player)
+                    .FirstOrDefaultAsync(m => m.Id == id, cancellationToken);
 
-                if (entity == null)
+                if (match == null)
                 {
-                    _logger.LogDebug("Player entry with ID {PlayerId} not found", id);
+                    _logger.LogDebug("Match with ID {MatchId} not found", id);
                     return null;
                 }
 
-                return entity.ToPlayersData();
+                return PlayersData.FromEntities(match.Player, match);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error occurred while retrieving player entry with ID {PlayerId}", id);
+                _logger.LogError(ex, "Error occurred while retrieving match with ID {MatchId}", id);
                 throw;
             }
         }
@@ -222,21 +259,30 @@ namespace MazeWalking.Web.Repositories
 
             try
             {
-                var entity = await _context.PlayerData
+                // Get player by name with their most recent match
+                var player = await _context.Players
                     .AsNoTracking()
+                    .Include(p => p.Matches.OrderByDescending(m => m.UpdatedAt).Take(1))
                     .FirstOrDefaultAsync(p => p.Name == name, cancellationToken);
 
-                if (entity == null)
+                if (player == null)
                 {
-                    _logger.LogDebug("Player entry with name '{PlayerName}' not found", name);
+                    _logger.LogDebug("Player with name '{PlayerName}' not found", name);
                     return null;
                 }
 
-                return entity.ToPlayersData();
+                var latestMatch = player.Matches.FirstOrDefault();
+                if (latestMatch == null)
+                {
+                    _logger.LogDebug("Player '{PlayerName}' has no matches", name);
+                    return null;
+                }
+
+                return PlayersData.FromEntities(player, latestMatch);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error occurred while retrieving player entry with name '{PlayerName}'", name);
+                _logger.LogError(ex, "Error occurred while retrieving player with name '{PlayerName}'", name);
                 throw;
             }
         }
@@ -246,13 +292,26 @@ namespace MazeWalking.Web.Repositories
         {
             try
             {
-                var entities = await _context.PlayerData
+                // Get all players with their latest match
+                var players = await _context.Players
                     .AsNoTracking()
+                    .Include(p => p.Matches.OrderByDescending(m => m.UpdatedAt).Take(1))
                     .ToListAsync(cancellationToken);
 
-                _logger.LogInformation("Retrieved {Count} player entries", entities.Count);
+                var result = new List<PlayersData>();
 
-                return entities.Select(e => e.ToPlayersData()).ToList();
+                foreach (var player in players)
+                {
+                    var latestMatch = player.Matches.FirstOrDefault();
+                    if (latestMatch != null)
+                    {
+                        result.Add(PlayersData.FromEntities(player, latestMatch));
+                    }
+                }
+
+                _logger.LogInformation("Retrieved {Count} player entries with matches", result.Count);
+
+                return result;
             }
             catch (Exception ex)
             {

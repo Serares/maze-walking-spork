@@ -33,10 +33,14 @@ namespace MazeWalking.Web.Services
 
         public string InitConfig(InitRequest initRequest)
         {
-
-            _playersDataCache.Add(initRequest.PlayerName.ToString(), )
+            // TODO: Implement initialization logic
             _logger.LogInformation("Game configuration initialized");
             return "Config initialized";
+        }
+
+        public string Move()
+        {
+
         }
 
         public async Task<PlayersData?> GetPlayerAsync(string playerName, CancellationToken cancellationToken = default)
@@ -92,8 +96,8 @@ namespace MazeWalking.Web.Services
             // Add to cache
             _playersDataCache[initializedPlayer.Name] = initializedPlayer;
 
-            _logger.LogInformation("Player {PlayerName} initialized with ID {PlayerId}",
-                initializedPlayer.Name, initializedPlayer.Id);
+            _logger.LogInformation("Player {PlayerName} initialized with Player ID {PlayerId} and Match ID {MatchId}",
+                initializedPlayer.Name, initializedPlayer.PlayerId, initializedPlayer.MatchId);
 
             return initializedPlayer;
         }
@@ -101,7 +105,7 @@ namespace MazeWalking.Web.Services
         {
             ArgumentNullException.ThrowIfNull(playersData);
 
-            _logger.LogInformation("Saving player data for ID {PlayerId}", playersData.Id);
+            _logger.LogInformation("Saving player data for Match ID {MatchId}", playersData.MatchId);
 
             // Update in database
             var updatedPlayer = await _repository.UpdateEntryByIdAsync(playersData, cancellationToken);
@@ -110,11 +114,11 @@ namespace MazeWalking.Web.Services
             {
                 // Update cache
                 _playersDataCache[updatedPlayer.Name] = updatedPlayer;
-                _logger.LogInformation("Player ID {PlayerId} saved successfully", updatedPlayer.Id);
+                _logger.LogInformation("Match ID {MatchId} saved successfully", updatedPlayer.MatchId);
             }
             else
             {
-                _logger.LogWarning("Failed to save player ID {PlayerId} - not found in database", playersData.Id);
+                _logger.LogWarning("Failed to save Match ID {MatchId} - not found in database", playersData.MatchId);
             }
 
             return updatedPlayer;

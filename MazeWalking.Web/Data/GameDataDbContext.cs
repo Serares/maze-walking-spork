@@ -5,7 +5,7 @@ namespace MazeWalking.Web.Data
 {
     /// <summary>
     /// Database context for the maze walking game.
-    /// Manages the PlayerData entity and provides database access through EF Core.
+    /// Manages Player and Match entities and provides database access through EF Core.
     /// </summary>
     public class GameDataDbContext : DbContext
     {
@@ -19,9 +19,14 @@ namespace MazeWalking.Web.Data
         }
 
         /// <summary>
-        /// Gets or sets the PlayerData entity set.
+        /// Gets or sets the Players entity set.
         /// </summary>
-        public DbSet<PlayerDataEntity> PlayerData { get; set; } = null!;
+        public DbSet<PlayerEntity> Players { get; set; } = null!;
+
+        /// <summary>
+        /// Gets or sets the Matches entity set.
+        /// </summary>
+        public DbSet<MatchEntity> Matches { get; set; } = null!;
 
         /// <summary>
         /// Configures the model and entity relationships.
@@ -31,16 +36,12 @@ namespace MazeWalking.Web.Data
         {
             base.OnModelCreating(modelBuilder);
 
-            // Configure PlayerDataEntity
-            modelBuilder.Entity<PlayerDataEntity>(entity =>
+            // Configure PlayerEntity
+            modelBuilder.Entity<PlayerEntity>(entity =>
             {
-                // Table name
-                entity.ToTable("PlayerData");
-
-                // Primary key
+                entity.ToTable("Players");
                 entity.HasKey(e => e.Id);
 
-                // Configure properties
                 entity.Property(e => e.Id)
                     .HasColumnName("id")
                     .ValueGeneratedOnAdd();
@@ -49,6 +50,40 @@ namespace MazeWalking.Web.Data
                     .HasColumnName("name")
                     .IsRequired()
                     .HasMaxLength(100);
+
+                entity.Property(e => e.CreatedAt)
+                    .HasColumnName("createdAt")
+                    .IsRequired();
+
+                entity.Property(e => e.UpdatedAt)
+                    .HasColumnName("updatedAt")
+                    .IsRequired();
+
+                // Create unique index on name
+                entity.HasIndex(e => e.Name)
+                    .IsUnique()
+                    .HasDatabaseName("IX_Players_Name");
+
+                // Configure one-to-many relationship with Matches
+                entity.HasMany(e => e.Matches)
+                    .WithOne(m => m.Player)
+                    .HasForeignKey(m => m.PlayerId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            // Configure MatchEntity
+            modelBuilder.Entity<MatchEntity>(entity =>
+            {
+                entity.ToTable("Matches");
+                entity.HasKey(e => e.Id);
+
+                entity.Property(e => e.Id)
+                    .HasColumnName("id")
+                    .ValueGeneratedOnAdd();
+
+                entity.Property(e => e.PlayerId)
+                    .HasColumnName("playerId")
+                    .IsRequired();
 
                 entity.Property(e => e.CurrentPosition)
                     .HasColumnName("currentPosition")
@@ -61,12 +96,10 @@ namespace MazeWalking.Web.Data
 
                 entity.Property(e => e.Finished)
                     .HasColumnName("finished")
-                    .IsRequired()
                     .HasDefaultValue(false);
 
                 entity.Property(e => e.Time)
                     .HasColumnName("time")
-                    .IsRequired()
                     .HasDefaultValue(0.0);
 
                 entity.Property(e => e.CreatedAt)
@@ -77,9 +110,9 @@ namespace MazeWalking.Web.Data
                     .HasColumnName("updatedAt")
                     .IsRequired();
 
-                // Create index on name for faster lookups
-                entity.HasIndex(e => e.Name)
-                    .HasDatabaseName("IX_PlayerData_Name");
+                // Create index on PlayerId for faster lookups
+                entity.HasIndex(e => e.PlayerId)
+                    .HasDatabaseName("IX_Matches_PlayerId");
             });
         }
 
@@ -106,10 +139,30 @@ namespace MazeWalking.Web.Data
         /// </summary>
         private void UpdateTimestamps()
         {
-            var entries = ChangeTracker.Entries<PlayerDataEntity>();
             var now = DateTime.UtcNow;
 
-            foreach (var entry in entries)
+            // Update PlayerEntity timestamps
+            var playerEntries = ChangeTracker.Entries<PlayerEntity>();
+            foreach (var entry in playerEntries)
+            {
+                switch (entry.State)
+                {
+                    case EntityState.Added:
+                        entry.Entity.CreatedAt = now;
+                        entry.Entity.UpdatedAt = now;
+                        break;
+
+                    case EntityState.Modified:
+                        entry.Entity.UpdatedAt = now;
+                        // Prevent modification of CreatedAt
+                        entry.Property(e => e.CreatedAt).IsModified = false;
+                        break;
+                }
+            }
+
+            // Update MatchEntity timestamps
+            var matchEntries = ChangeTracker.Entries<MatchEntity>();
+            foreach (var entry in matchEntries)
             {
                 switch (entry.State)
                 {

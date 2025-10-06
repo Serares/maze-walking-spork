@@ -1,6 +1,4 @@
 ﻿namespace MazeWalking.Web.Models
 {
-    public class MoveResponse
-    {
-    }
+    public record MoveResponse(bool CanMove, string Message);
 }
