@@ -1,12 +1,5 @@
 // API response types based on MazeWalking.Web endpoints
 
-export interface WeatherForecast {
-  date: string;
-  temperatureC: number;
-  temperatureF: number;
-  summary: string;
-}
-
 // Base API error type
 export interface ApiError {
   message: string;
@@ -19,4 +12,24 @@ export interface ApiResponse<T> {
   data?: T;
   error?: ApiError;
   isLoading: boolean;
+}
+
+// Maze game types
+export interface InitRequest {
+  playerName: string;
+  rowsColumns: number;
+}
+
+export interface InitResponse {
+  grid: number[][];
+}
+
+export interface MoveRequest {
+  x: number;
+  y: number;
+}
+
+export interface MoveResponse {
+  success: boolean;
+  message?: string;
 }

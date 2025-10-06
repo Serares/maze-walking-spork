@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { ApiError, ApiResponse } from '../types/api';
+import type { ApiError, ApiResponse } from '../types/api';
 
 /**
  * Custom hook for making API calls with loading and error states

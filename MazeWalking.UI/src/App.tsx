@@ -1,33 +1,63 @@
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
-import { WeatherForecast } from './components/common/WeatherForecast'
+import { useState, useCallback } from 'react';
+import { LandingPage } from './components/LandingPage';
+import { MazeGrid } from './components/MazeGrid';
+import apiClient from './services/api';
+import type { InitResponse } from './types/api';
 
 function App() {
+  const [gameState, setGameState] = useState<'landing' | 'playing'>('landing');
+  const [mazeData, setMazeData] = useState<InitResponse | null>(null);
+  const [playerName, setPlayerName] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | undefined>(undefined);
+
+  const handleStartGame = useCallback(async (name: string, gridSize: number) => {
+    setIsLoading(true);
+    setError(undefined);
+
+    try {
+      const response = await apiClient.initMaze({
+        playerName: name,
+        rowsColumns: gridSize,
+      });
+
+      setMazeData(response);
+      setPlayerName(name);
+      setGameState('playing');
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to initialize game';
+      setError(errorMessage);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  const handleReset = useCallback(() => {
+    setGameState('landing');
+    setMazeData(null);
+    setPlayerName('');
+    setError(undefined);
+  }, []);
+
   return (
     <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>MazeWalking React App</h1>
-      <div className="card">
-        <p>
-          React + TypeScript + Vite connected to .NET Web API
-        </p>
-      </div>
-
-      <WeatherForecast />
-
-      <p className="read-the-docs" style={{ marginTop: '40px' }}>
-        Edit <code>src/App.tsx</code> and save to test HMR
-      </p>
+      {gameState === 'landing' ? (
+        <LandingPage
+          onStart={handleStartGame}
+          isLoading={isLoading}
+          error={error}
+        />
+      ) : (
+        mazeData && (
+          <MazeGrid
+            grid={mazeData.grid}
+            playerName={playerName}
+            onReset={handleReset}
+          />
+        )
+      )}
     </>
-  )
+  );
 }
 
-export default App
+export default App;

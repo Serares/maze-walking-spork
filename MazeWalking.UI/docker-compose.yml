@@ -1,0 +1,18 @@
+version: '3.8'
+
+services:
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "5174:80"  # Map container port 80 to host port 5174
+    environment:
+      - NODE_ENV=production
+    restart: unless-stopped
+    networks:
+      - maze-walking-network
+
+networks:
+  maze-walking-network:
+    driver: bridge

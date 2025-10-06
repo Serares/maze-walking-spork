@@ -1,4 +1,4 @@
-import type { WeatherForecast, ApiError } from '../types/api';
+import type { ApiError, InitRequest, InitResponse, MoveRequest, MoveResponse } from '../types/api';
 
 // Base API configuration
 const API_BASE_URL = '/api';
@@ -21,7 +21,7 @@ async function fetchApi<T>(endpoint: string, options?: RequestInit): Promise<T> 
         message: `HTTP error! status: ${response.status}`,
         status: response.status,
       };
-      
+
       try {
         const errorData = await response.json();
         error.details = errorData;
@@ -29,7 +29,7 @@ async function fetchApi<T>(endpoint: string, options?: RequestInit): Promise<T> 
         // If response body is not JSON, use status text
         error.message = response.statusText || error.message;
       }
-      
+
       throw error;
     }
 
@@ -38,7 +38,7 @@ async function fetchApi<T>(endpoint: string, options?: RequestInit): Promise<T> 
     if ((error as ApiError).status) {
       throw error;
     }
-    
+
     // Network or other errors
     throw {
       message: error instanceof Error ? error.message : 'An unknown error occurred',
@@ -53,17 +53,24 @@ async function fetchApi<T>(endpoint: string, options?: RequestInit): Promise<T> 
  */
 export const apiClient = {
   /**
-   * Get weather forecast
+   * Initialize a new maze game
    */
-  async getWeatherForecast(): Promise<WeatherForecast[]> {
-    return fetchApi<WeatherForecast[]>('/weatherforecast');
+  async initMaze(request: InitRequest): Promise<InitResponse> {
+    return fetchApi<InitResponse>('/init', {
+      method: 'POST',
+      body: JSON.stringify(request),
+    });
   },
 
-  // Add more API methods here as your backend expands
-  // Example:
-  // async getMazeData(id: string): Promise<MazeData> {
-  //   return fetchApi<MazeData>(`/maze/${id}`);
-  // },
+  /**
+   * Move player to new position
+   */
+  async movePlayer(request: MoveRequest): Promise<MoveResponse> {
+    return fetchApi<MoveResponse>('/move', {
+      method: 'POST',
+      body: JSON.stringify(request),
+    });
+  },
 };
 
 export default apiClient;
