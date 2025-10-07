@@ -115,9 +115,106 @@ namespace MazeWalking.Web.Services
             _Obstacles = (int)Math.Ceiling(result);
         }
 
-        public string Move()
+        /// <summary>
+        /// Processes a player's move request with full validation and timer management.
+        /// </summary>
+        /// <param name="moveRequest">The move request containing PlayerId (MatchId), target X and Y coordinates.</param>
+        /// <param name="cancellationToken">Cancellation token for async operation.</param>
+        /// <returns>MoveResponse with success status, message, and updated player data.</returns>
+        public async Task<MoveResponse> Move(MoveRequest moveRequest, CancellationToken cancellationToken = default)
         {
-            return "Implement me!";
+            try
+            {
+                if (!Guid.TryParse(moveRequest.PlayerId, out Guid matchId))
+                {
+                    _logger.LogWarning("Invalid PlayerId format: {PlayerId}", moveRequest.PlayerId);
+                    return new MoveResponse(false, "Invalid player ID format");
+                }
+
+                PlayersData? match = await _repository.GetByIdAsync(matchId, cancellationToken);
+                if (match == null)
+                {
+                    _logger.LogWarning("Match not found: {MatchId}", matchId);
+                    return new MoveResponse(false, "Match not found");
+                }
+
+                if (match.Finished)
+                {
+                    _logger.LogInformation("Attempted move on finished game: {MatchId}", matchId);
+                    return new MoveResponse(false, "Game is already finished", match);
+                }
+
+                int targetX = moveRequest.X;
+                int targetY = moveRequest.Y;
+                int mazeRows = match.Maze.GetLength(0);
+                int mazeCols = match.Maze.GetLength(1);
+
+                if (targetX < 0 || targetX >= mazeRows || targetY < 0 || targetY >= mazeCols)
+                {
+                    _logger.LogWarning("Move out of bounds: ({X},{Y}) for maze size {Rows}x{Cols}",
+                        targetX, targetY, mazeRows, mazeCols);
+                    return new MoveResponse(false, "Move is out of bounds", match);
+                }
+
+                int cellValue = match.Maze[targetX, targetY];
+                if (cellValue == (int)ECellType.Obstacle)
+                {
+                    _logger.LogWarning("Move to obstacle cell at ({X},{Y})", targetX, targetY);
+                    return new MoveResponse(false, "Cannot move to obstacle", match);
+                }
+
+                // Validate move is exactly one step (no diagonal, no jumps)
+                int currentX = match.CurrentPosition.X;
+                int currentY = match.CurrentPosition.Y;
+                int deltaX = Math.Abs(targetX - currentX);
+                int deltaY = Math.Abs(targetY - currentY);
+
+                // Valid moves: exactly one step horizontally OR vertically (not both, not zero)
+                bool isValidStep = (deltaX == 1 && deltaY == 0) || (deltaX == 0 && deltaY == 1);
+
+                if (!isValidStep)
+                {
+                    _logger.LogWarning("Invalid move from ({CurrentX},{CurrentY}) to ({TargetX},{TargetY})",
+                        currentX, currentY, targetX, targetY);
+                    return new MoveResponse(false, "Move must be exactly one step horizontally or vertically", match);
+                }
+
+                match.CurrentPosition = new Position(targetX, targetY);
+
+                // Calculate elapsed time from match creation
+                match.Time = (DateTime.UtcNow - match.CreatedAt).TotalSeconds;
+
+                // Check if player reached goal (last cell in maze)
+                bool reachedGoal = (targetX == mazeRows - 1 && targetY == mazeCols - 1);
+                if (reachedGoal)
+                {
+                    match.Finished = true;
+                    _logger.LogInformation("Player reached goal! MatchId: {MatchId}, Time: {Time}s",
+                        matchId, match.Time);
+                }
+
+                // Persist changes
+                PlayersData? updatedMatch = await _repository.UpdateEntryByIdAsync(match, cancellationToken);
+                if (updatedMatch == null)
+                {
+                    _logger.LogError("Failed to update match: {MatchId}", matchId);
+                    return new MoveResponse(false, "Failed to update game state");
+                }
+
+                string message = reachedGoal
+                    ? $"Congratulations! You finished in {updatedMatch.Time:F2} seconds!"
+                    : "Move successful";
+
+                _logger.LogDebug("Move successful: MatchId {MatchId}, Position ({X},{Y}), Time {Time}s",
+                    matchId, targetX, targetY, updatedMatch.Time);
+
+                return new MoveResponse(true, message, updatedMatch);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error processing move for PlayerId: {PlayerId}", moveRequest.PlayerId);
+                return new MoveResponse(false, "An error occurred while processing the move");
+            }
         }
 
     }

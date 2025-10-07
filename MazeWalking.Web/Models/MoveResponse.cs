@@ -1,4 +1,10 @@
-﻿namespace MazeWalking.Web.Models
+﻿using MazeWalking.Web.Models.Data;
+
+namespace MazeWalking.Web.Models
 {
-    public record MoveResponse(bool CanMove, string Message);
+    public record MoveResponse(
+        bool Success,
+        string Message,
+        PlayersData? PlayerData = null
+    );
 }

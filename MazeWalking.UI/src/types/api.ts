@@ -35,6 +35,7 @@ export interface MoveRequest {
 export interface MoveResponse {
   success: boolean;
   message?: string;
+  playerData?: PlayerData; // Updated player data including time and finished status
 }
 
 export interface PlayerData {
