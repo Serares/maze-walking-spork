@@ -1,0 +1,50 @@
+version: '3.8'
+
+services:
+  mazewalking:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: mazewalking-app
+    ports:
+      - "5180:5180"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_URLS=http://+:5180
+      - ConnectionStrings__DefaultConnection=Data Source=/app/db/mazewalking.db
+    volumes:
+      # Persist database
+      - ./db:/app/db
+      # Persist logs
+      - ./logs:/app/logs
+    restart: unless-stopped
+    networks:
+      - mazewalking-network
+
+networks:
+  mazewalking-network:
+    driver: bridge
+
+# Usage:
+#
+# Build and start:
+#   docker-compose up -d
+#
+# Build with no cache:
+#   docker-compose build --no-cache
+#   docker-compose up -d
+#
+# View logs:
+#   docker-compose logs -f
+#
+# Stop:
+#   docker-compose down
+#
+# Stop and remove volumes:
+#   docker-compose down -v
+#
+# Restart:
+#   docker-compose restart
+#
+# Access shell:
+#   docker-compose exec mazewalking /bin/sh

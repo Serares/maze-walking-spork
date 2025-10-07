@@ -26,4 +26,9 @@
     <Folder Include="db\" />
   </ItemGroup>
 
+  <!-- Include wwwroot files in publish output (React app static files) -->
+  <ItemGroup>
+    <Content Include="wwwroot\**" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

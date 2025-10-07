@@ -87,8 +87,17 @@ namespace MazeWalking.Web
 
             app.UseHttpLogging();
 
+            // Serve static files from wwwroot (React app)
+            app.UseStaticFiles();
+
             app.UseAuthorization();
+
+            // API routes
             app.MapPosts();
+
+            // SPA fallback - serve index.html for all non-API routes
+            app.MapFallbackToFile("index.html");
+
             app.Run();
         }
     }
