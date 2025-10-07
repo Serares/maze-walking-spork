@@ -1,8 +1,9 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { LandingPage } from './components/LandingPage';
 import { MazeGrid } from './components/MazeGrid';
 import apiClient from './services/api';
 import type { InitResponse } from './types/api';
+import { loadSession, saveSession, clearSession } from './utils/sessionStorage';
 
 function App() {
   const [gameState, setGameState] = useState<'landing' | 'playing'>('landing');
@@ -11,7 +12,16 @@ function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | undefined>(undefined);
 
-  const handleStartGame = useCallback(async (name: string, gridSize: number) => {
+  // Check for existing session on mount
+  useEffect(() => {
+    const existingSession = loadSession();
+    if (existingSession) {
+      // Auto-resume existing session
+      handleStartGame(existingSession.playerName, existingSession.grid.length, existingSession.playerId);
+    }
+  }, []);
+
+  const handleStartGame = useCallback(async (name: string, gridSize: number, existingPlayerId?: string) => {
     setIsLoading(true);
     setError(undefined);
 
@@ -19,7 +29,11 @@ function App() {
       const response = await apiClient.initMaze({
         playerName: name,
         rowsColumns: gridSize,
+        playerId: existingPlayerId, // Send existing playerId if resuming
       });
+
+      // Save session to localStorage
+      saveSession(response);
 
       setMazeData(response);
       setPlayerName(name);
@@ -33,6 +47,9 @@ function App() {
   }, []);
 
   const handleReset = useCallback(() => {
+    // Clear localStorage session
+    clearSession();
+
     setGameState('landing');
     setMazeData(null);
     setPlayerName('');
@@ -51,7 +68,7 @@ function App() {
         mazeData && (
           <MazeGrid
             grid={mazeData.grid}
-            playerName={playerName}
+            playerData={mazeData.playerData}
             onReset={handleReset}
           />
         )

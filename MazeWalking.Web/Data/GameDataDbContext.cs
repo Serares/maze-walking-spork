@@ -43,8 +43,7 @@ namespace MazeWalking.Web.Data
                 entity.HasKey(e => e.Id);
 
                 entity.Property(e => e.Id)
-                    .HasColumnName("id")
-                    .ValueGeneratedOnAdd();
+                    .HasColumnName("id");
 
                 entity.Property(e => e.Name)
                     .HasColumnName("name")
@@ -78,8 +77,7 @@ namespace MazeWalking.Web.Data
                 entity.HasKey(e => e.Id);
 
                 entity.Property(e => e.Id)
-                    .HasColumnName("id")
-                    .ValueGeneratedOnAdd();
+                    .HasColumnName("id");
 
                 entity.Property(e => e.PlayerId)
                     .HasColumnName("playerId")

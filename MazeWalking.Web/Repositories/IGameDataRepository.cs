@@ -41,7 +41,7 @@ namespace MazeWalking.Web.Repositories
         /// <param name="id">The player ID.</param>
         /// <param name="cancellationToken">Cancellation token for async operation.</param>
         /// <returns>The player data if found, otherwise null.</returns>
-        Task<PlayersData?> GetByIdAsync(int id, CancellationToken cancellationToken = default);
+        Task<PlayersData?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Retrieves a player entry by name.

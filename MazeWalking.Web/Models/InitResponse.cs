@@ -1,4 +1,6 @@
-﻿namespace MazeWalking.Web.Models
+﻿using MazeWalking.Web.Models.Data;
+
+namespace MazeWalking.Web.Models
 {
-    public record InitResponse(List<List<int>> mazeConfig);
+    public record InitResponse(PlayersData playersData, List<List<int>> mazeConfig);
 }

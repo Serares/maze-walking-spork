@@ -15,14 +15,14 @@ namespace MazeWalking.Web.Models.Data
         /// </summary>
         [Key]
         [Column("id")]
-        public int Id { get; set; }
+        public Guid Id { get; set; }
 
         /// <summary>
         /// Foreign key to the Player table.
         /// </summary>
         [Required]
         [Column("playerId")]
-        public int PlayerId { get; set; }
+        public Guid PlayerId { get; set; }
 
         /// <summary>
         /// Current position stored as JSON string in format {"X":1,"Y":10}.

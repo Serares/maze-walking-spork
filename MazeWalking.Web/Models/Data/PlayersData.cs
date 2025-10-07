@@ -1,4 +1,5 @@
 ﻿using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace MazeWalking.Web.Models.Data
 {
@@ -16,12 +17,12 @@ namespace MazeWalking.Web.Models.Data
         /// <summary>
         /// Unique identifier for the player.
         /// </summary>
-        public int PlayerId { get; set; }
+        public Guid PlayerId { get; set; }
 
         /// <summary>
         /// Unique identifier for the current match.
         /// </summary>
-        public int MatchId { get; set; }
+        public Guid MatchId { get; set; }
 
         /// <summary>
         /// Player's name. Used as a friendly identifier.
@@ -37,7 +38,7 @@ namespace MazeWalking.Web.Models.Data
         /// The maze structure as a 2D array.
         /// Each cell can represent walls (1), paths (0), start point, end point, etc.
         /// </summary>
-        public required int[][] Maze { get; set; }
+        public required int[,] Maze { get; set; }
 
         /// <summary>
         /// Indicates whether the player has completed the maze.
@@ -52,7 +53,7 @@ namespace MazeWalking.Web.Models.Data
         /// <summary>
         /// Timestamp when the match was created.
         /// </summary>
-        public DateTime CreatedAt { get; set; }
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
         /// <summary>
         /// Timestamp when the match was last updated.
@@ -72,7 +73,7 @@ namespace MazeWalking.Web.Models.Data
             var position = JsonSerializer.Deserialize<Position>(match.CurrentPosition, jsonOptions)
                 ?? throw new InvalidOperationException("Failed to deserialize position data");
 
-            var maze = JsonSerializer.Deserialize<int[][]>(match.Maze, jsonOptions)
+            var maze = JsonSerializer.Deserialize<int[,]>(match.Maze, jsonOptions)
                 ?? throw new InvalidOperationException("Failed to deserialize maze data");
 
             return new PlayersData

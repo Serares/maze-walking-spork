@@ -18,13 +18,16 @@ export interface ApiResponse<T> {
 export interface InitRequest {
   playerName: string;
   rowsColumns: number;
+  playerId?: string; // Optional - for resuming existing session
 }
 
 export interface InitResponse {
   grid: number[][];
+  playerData: PlayerData;
 }
 
 export interface MoveRequest {
+  playerId: string; // Required for validating player
   x: number;
   y: number;
 }
@@ -32,4 +35,16 @@ export interface MoveRequest {
 export interface MoveResponse {
   success: boolean;
   message?: string;
+}
+
+export interface PlayerData {
+  playerId: string;
+  matchId: string;
+  name: string;
+  currentPosition: { x: number; y: number };
+  maze: number[][];
+  finished: boolean;
+  time: number; // elaspsed time in seconds since player started the maze
+  createdAt: string;
+  updatedAt: string;
 }

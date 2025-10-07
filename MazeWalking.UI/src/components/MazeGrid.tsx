@@ -1,13 +1,14 @@
 import { useState, useEffect, useCallback } from 'react';
 import apiClient from '../services/api';
+import type { PlayerData } from '../types/api';
 
 interface MazeGridProps {
   grid: number[][];
-  playerName: string;
+  playerData: PlayerData;
   onReset: () => void;
 }
 
-export function MazeGrid({ grid, playerName, onReset }: MazeGridProps) {
+export function MazeGrid({ grid, playerData, onReset }: MazeGridProps) {
   const [playerPosition, setPlayerPosition] = useState({ x: 0, y: 0 });
   const [error, setError] = useState<string | null>(null);
   const [isMoving, setIsMoving] = useState(false);
@@ -53,7 +54,11 @@ export function MazeGrid({ grid, playerName, onReset }: MazeGridProps) {
     setError(null);
 
     try {
-      const response = await apiClient.movePlayer({ x: newX, y: newY });
+      const response = await apiClient.movePlayer({
+        playerId: playerData.playerId,
+        x: newX,
+        y: newY
+      });
 
       if (response.success) {
         setPlayerPosition({ x: newX, y: newY });
@@ -67,7 +72,7 @@ export function MazeGrid({ grid, playerName, onReset }: MazeGridProps) {
     } finally {
       setIsMoving(false);
     }
-  }, [playerPosition, grid, isMoving]);
+  }, [playerPosition, grid, isMoving, playerData.playerId]);
 
   // Add event listener for keyboard input
   useEffect(() => {
@@ -88,7 +93,7 @@ export function MazeGrid({ grid, playerName, onReset }: MazeGridProps) {
           Maze Walking Game
         </h1>
         <p className="text-slate-700 text-base mb-1">
-          Player: <strong className="text-emerald-700">{playerName}</strong>
+          Player: <strong className="text-emerald-700">{playerData.name}</strong>
         </p>
         <p className="text-slate-600 text-sm">
           Use arrow keys to move
@@ -109,6 +114,27 @@ export function MazeGrid({ grid, playerName, onReset }: MazeGridProps) {
             <div key={rowIndex} className="flex">
               {row.map((cell, colIndex) => {
                 const isPlayer = playerPosition.x === colIndex && playerPosition.y === rowIndex;
+                const isGoal = rowIndex === grid.length - 1 && colIndex === grid[0].length - 1;
+
+                // Determine cell styling based on cell type
+                let cellBgClass = '';
+                let cellContent = '';
+
+                if (isPlayer) {
+                  // Player cell - highest priority
+                  cellBgClass = 'bg-emerald-700 text-white';
+                  cellContent = '★';
+                } else if (isGoal) {
+                  // Goal cell - bottom-right corner
+                  cellBgClass = 'bg-emerald-500 text-white';
+                  cellContent = '🏁';
+                } else if (cell === 0) {
+                  // Walkable path
+                  cellBgClass = 'bg-emerald-50';
+                } else if (cell === 1) {
+                  // Wall/Obstacle
+                  cellBgClass = 'bg-slate-800';
+                }
 
                 return (
                   <div
@@ -117,12 +143,7 @@ export function MazeGrid({ grid, playerName, onReset }: MazeGridProps) {
                       flex items-center justify-center
                       border border-emerald-200
                       transition-colors duration-200
-                      ${isPlayer
-                        ? 'bg-emerald-700 text-white'
-                        : cell === 0
-                        ? 'bg-emerald-50'
-                        : 'bg-slate-800'
-                      }
+                      ${cellBgClass}
                     `}
                     style={{
                       width: `${cellSize}px`,
@@ -130,7 +151,7 @@ export function MazeGrid({ grid, playerName, onReset }: MazeGridProps) {
                       fontSize: `${cellSize * 0.6}px`
                     }}
                   >
-                    {isPlayer && '★'}
+                    {cellContent}
                   </div>
                 );
               })}
@@ -164,8 +185,9 @@ export function MazeGrid({ grid, playerName, onReset }: MazeGridProps) {
         <ul className="text-slate-700 text-sm leading-relaxed pl-5 space-y-2">
           <li>Use arrow keys (↑ ↓ ← →) to move your player (★)</li>
           <li><span className="inline-block w-4 h-4 bg-emerald-50 border border-emerald-200 align-middle mr-1"></span> Light cells are walkable paths</li>
-          <li><span className="inline-block w-4 h-4 bg-slate-800 align-middle mr-1"></span> Dark cells are walls</li>
-          <li>Navigate through the maze to explore</li>
+          <li><span className="inline-block w-4 h-4 bg-slate-800 align-middle mr-1"></span> Dark cells are walls (obstacles)</li>
+          <li><span className="inline-block w-4 h-4 bg-emerald-500 text-white text-xs leading-4 text-center align-middle mr-1">🏁</span> Reach the goal at the bottom-right corner!</li>
+          <li>Navigate through the maze and find your way to the goal</li>
         </ul>
       </div>
     </div>

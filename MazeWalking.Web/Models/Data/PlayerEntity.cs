@@ -15,7 +15,7 @@ namespace MazeWalking.Web.Models.Data
         /// </summary>
         [Key]
         [Column("id")]
-        public int Id { get; set; }
+        public Guid Id { get; set; }
 
         /// <summary>
         /// Player's name. Must be unique.

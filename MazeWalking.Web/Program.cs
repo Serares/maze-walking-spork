@@ -83,8 +83,9 @@ namespace MazeWalking.Web
 
             app.UseHttpsRedirection();
 
-            // Enable CORS
-            app.UseCors();
+            app.UseCors("ReactApp");
+
+            app.UseHttpLogging();
 
             app.UseAuthorization();
             app.MapPosts();

@@ -1,4 +1,5 @@
-﻿using MazeWalking.Web.Models;
+﻿using System.Threading.Tasks;
+using MazeWalking.Web.Models;
 using MazeWalking.Web.Services;
 using Microsoft.AspNetCore.Mvc;
 
@@ -12,12 +13,13 @@ namespace MazeWalking.Web.RouteExtensions
             api.MapPost("/config", Config);
         }
 
-        public static IResult Config(
+        public static async Task<IResult> Config(
             [FromServices] GameEngine ge,
             [FromBody] InitRequest initRequest
             )
         {
-            return Results.Ok(ge.InitConfig(initRequest));
+            var response = await ge.InitConfig(initRequest);
+            return Results.Ok(response);
         }
     }
 }

@@ -40,6 +40,7 @@ namespace MazeWalking.Web.Repositories
                 {
                     player = new PlayerEntity
                     {
+                        Id = Guid.NewGuid(),
                         Name = playersData.Name
                     };
                     await _context.Players.AddAsync(player, cancellationToken);
@@ -55,6 +56,7 @@ namespace MazeWalking.Web.Repositories
 
                 var match = new MatchEntity
                 {
+                    Id = Guid.NewGuid(),
                     PlayerId = player.Id,
                     CurrentPosition = positionJson,
                     Maze = mazeJson,
@@ -89,7 +91,7 @@ namespace MazeWalking.Web.Repositories
         {
             ArgumentNullException.ThrowIfNull(playersData);
 
-            if (playersData.MatchId <= 0)
+            if (String.IsNullOrEmpty(playersData.MatchId.ToString()))
             {
                 throw new ArgumentException("Match ID must be greater than zero", nameof(playersData));
             }
@@ -153,7 +155,7 @@ namespace MazeWalking.Web.Repositories
                 throw new ArgumentException("Player name cannot be null or empty", nameof(playersData));
             }
 
-            if (playersData.MatchId <= 0)
+            if (String.IsNullOrEmpty(playersData.MatchId.ToString()))
             {
                 throw new ArgumentException("Match ID must be greater than zero", nameof(playersData));
             }
@@ -219,13 +221,8 @@ namespace MazeWalking.Web.Repositories
         }
 
         /// <inheritdoc/>
-        public async Task<PlayersData?> GetByIdAsync(int id, CancellationToken cancellationToken = default)
+        public async Task<PlayersData?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
         {
-            if (id <= 0)
-            {
-                throw new ArgumentException("Match ID must be greater than zero", nameof(id));
-            }
-
             try
             {
                 // Get match with player by match ID
